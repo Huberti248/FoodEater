@@ -635,6 +635,9 @@ void mainLoop()
                             addHeart(hearthRects);
                         }
                         scoreText.setText(renderer, robotoF, "0", {});
+                        player.r.w = 32;
+                        player.r.h = 32;
+                        player.r.y = windowHeight - player.r.h;
                     }
                 }
                 foods.erase(foods.begin() + i--);
@@ -648,6 +651,11 @@ void mainLoop()
             if (SDL_HasIntersectionF(&player.r, &foods[i].r)) {
                 if (foods[i].foodType == FoodType::Good) {
                     scoreText.setText(renderer, robotoF, std::stoi(scoreText.text) + 1, {});
+                    if (player.r.w < 50) {
+                        player.r.w += 1;
+                        player.r.h += 1;
+                    }
+                    player.r.y = windowHeight - player.r.h;
                 }
                 else if (foods[i].foodType == FoodType::Bad) {
                     hearthRects.pop_back();
@@ -656,6 +664,9 @@ void mainLoop()
                             addHeart(hearthRects);
                         }
                         scoreText.setText(renderer, robotoF, "0", {});
+                        player.r.w = 32;
+                        player.r.h = 32;
+                        player.r.y = windowHeight - player.r.h;
                     }
                 }
                 foods.erase(foods.begin() + i--);
