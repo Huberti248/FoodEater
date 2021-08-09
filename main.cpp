@@ -480,8 +480,14 @@ struct Entity {
     JumpState jumpState = JumpState::None;
 };
 
+enum class FoodType {
+    Good,
+    Bad,
+};
+
 struct Food {
     SDL_FRect r{};
+    FoodType foodType = FoodType::Good;
 };
 
 enum class State {
@@ -494,6 +500,7 @@ SDL_Texture* shopT;
 SDL_Texture* buyT;
 SDL_Texture* backArrowT;
 SDL_Texture* foodT;
+SDL_Texture* goodFoodT;
 SDL_Texture* characterT;
 Entity player;
 Clock globalClock;
@@ -507,6 +514,7 @@ Text buyHeartPriceText;
 SDL_FRect buyHeartR;
 SDL_FRect buyHeartBtnR;
 SDL_FRect backArrowR;
+int maxHeartsCount = 1;
 
 Food generateFood(Entity player)
 {
@@ -517,7 +525,29 @@ Food generateFood(Entity player)
         food.r.x = windowWidth;
         food.r.y = windowHeight - food.r.h;
     } while (SDL_HasIntersectionF(&food.r, &player.r));
+    food.foodType = (FoodType)(random(0, 1));
     return food;
+}
+
+void addHeart(std::vector<SDL_FRect>& hearthRects)
+{
+    hearthRects.push_back(SDL_FRect());
+    if (hearthRects.size() == 1) {
+        hearthRects.back().w = 32;
+        hearthRects.back().h = 32;
+        hearthRects.back().x = 0;
+        hearthRects.back().y = 0;
+    }
+    else {
+        hearthRects.back() = hearthRects[hearthRects.size() - 2];
+        hearthRects.back().x = hearthRects[hearthRects.size() - 2].x + hearthRects[hearthRects.size() - 2].w + 5;
+        if (hearthRects.size() > 3) {
+            if (hearthRects.size() == 4) {
+                hearthRects.back().x = hearthRects.front().x;
+            }
+            hearthRects.back().y = hearthRects.front().x + hearthRects.front().h;
+        }
+    }
 }
 
 void mainLoop()
@@ -587,6 +617,15 @@ void mainLoop()
         for (int i = 0; i < foods.size(); ++i) {
             foods[i].r.x -= deltaTime * FOOD_SPEED;
             if (foods[i].r.x + foods[i].r.w < 0) {
+                if (foods[i].foodType == FoodType::Good) {
+                    hearthRects.pop_back();
+                    if (hearthRects.empty()) {
+                        for (int i = 0; i < maxHeartsCount; ++i) {
+                            addHeart(hearthRects);
+                        }
+                        scoreText.setText(renderer, robotoF, "0", {});
+                    }
+                }
                 foods.erase(foods.begin() + i--);
             }
         }
@@ -594,11 +633,33 @@ void mainLoop()
             foods.push_back(generateFood(player));
             foodClock.restart();
         }
+        for (int i = 0; i < foods.size(); ++i) {
+            if (SDL_HasIntersectionF(&player.r, &foods[i].r)) {
+                if (foods[i].foodType == FoodType::Good) {
+                    scoreText.setText(renderer, robotoF, std::stoi(scoreText.text) + 1, {});
+                }
+                else if (foods[i].foodType == FoodType::Bad) {
+                    hearthRects.pop_back();
+                    if (hearthRects.empty()) {
+                        for (int i = 0; i < maxHeartsCount; ++i) {
+                            addHeart(hearthRects);
+                        }
+                        scoreText.setText(renderer, robotoF, "0", {});
+                    }
+                }
+                foods.erase(foods.begin() + i--);
+            }
+        }
         SDL_SetRenderDrawColor(renderer, 255, 255, 255, 0);
         SDL_RenderClear(renderer);
         SDL_RenderCopyF(renderer, shopT, 0, &shopR);
         for (int i = 0; i < foods.size(); ++i) {
-            SDL_RenderCopyF(renderer, foodT, 0, &foods[i].r);
+            if (foods[i].foodType == FoodType::Good) {
+                SDL_RenderCopyF(renderer, goodFoodT, 0, &foods[i].r);
+            }
+            else if (foods[i].foodType == FoodType::Bad) {
+                SDL_RenderCopyF(renderer, foodT, 0, &foods[i].r);
+            }
         }
         scoreText.draw(renderer);
         for (int i = 0; i < hearthRects.size(); ++i) {
@@ -631,16 +692,9 @@ void mainLoop()
                 if (SDL_PointInFRect(&mousePos, &buyHeartBtnR) && hearthRects.size() < 5) {
                     if (std::stoi(scoreText.text) >= std::stoi(buyHeartPriceText.text)) {
                         scoreText.setText(renderer, robotoF, std::stoi(scoreText.text) - std::stoi(buyHeartPriceText.text), {});
-                        hearthRects.push_back(SDL_FRect());
-                        hearthRects.back() = hearthRects[hearthRects.size() - 2];
-                        hearthRects.back().x = hearthRects[hearthRects.size() - 2].x + hearthRects[hearthRects.size() - 2].w + 5;
-                        if (hearthRects.size() > 3) {
-                            if (hearthRects.size() == 4) {
-                                hearthRects.back().x = hearthRects.front().x;
-                            }
-                            hearthRects.back().y = hearthRects.front().x + hearthRects.front().h;
-                        }
+                        addHeart(hearthRects);
                         buyHeartPriceText.setText(renderer, robotoF, std::stoi(buyHeartPriceText.text) + 100, {});
+                        ++maxHeartsCount;
                     }
                 }
             }
@@ -690,6 +744,7 @@ int main(int argc, char* argv[])
     backArrowT = IMG_LoadTexture(renderer, "res/backArrow.png");
     foodT = IMG_LoadTexture(renderer, "res/food.png");
     characterT = IMG_LoadTexture(renderer, "res/character.png");
+    goodFoodT = IMG_LoadTexture(renderer, "res/goodFood.png");
     player.r.w = 32;
     player.r.h = 32;
     player.r.x = windowWidth / 2 - player.r.w / 2;
@@ -700,11 +755,7 @@ int main(int argc, char* argv[])
     scoreText.dstR.h = 35;
     scoreText.dstR.x = windowWidth / 2 - scoreText.dstR.w / 2;
     scoreText.dstR.y = 5;
-    hearthRects.push_back(SDL_FRect());
-    hearthRects.back().w = 32;
-    hearthRects.back().h = 32;
-    hearthRects.back().x = 0;
-    hearthRects.back().y = 0;
+    addHeart(hearthRects);
     shopR.w = 48;
     shopR.h = 48;
     shopR.x = windowWidth - shopR.w;
