@@ -16,6 +16,7 @@
 #include <string>
 #include <unordered_map>
 #include <vector>
+#include <random>
 //#include <SDL_gpu.h>
 //#include <SFML/Network.hpp>
 //#include <SFML/Graphics.hpp>
@@ -58,7 +59,6 @@ using namespace std::chrono_literals;
 //640 x 480 (480i - Smallest PC monitor)
 
 #define PLAYER_JUMP_SPEED 0.5
-#define FOOD_SPEED 0.5
 
 int windowWidth = 240;
 int windowHeight = 320;
@@ -79,6 +79,13 @@ void logOutputCallback(void* userdata, int category, SDL_LogPriority priority, c
 int random(int min, int max)
 {
     return min + rand() % ((max + 1) - min);
+}
+
+float random(float min, float max)
+{
+    static std::default_random_engine e;
+    std::uniform_real_distribution<> dis(min, max);
+    return dis(e);
 }
 
 int SDL_QueryTextureF(SDL_Texture* texture, Uint32* format, int* access, float* w, float* h)
@@ -488,6 +495,7 @@ enum class FoodType {
 struct Food {
     SDL_FRect r{};
     FoodType foodType = FoodType::Good;
+    float speed = 0;
 };
 
 enum class State {
@@ -526,6 +534,7 @@ Food generateFood(Entity player)
         food.r.y = windowHeight - food.r.h;
     } while (SDL_HasIntersectionF(&food.r, &player.r));
     food.foodType = (FoodType)(random(0, 1));
+    food.speed = random(0.1f, 0.5f);
     return food;
 }
 
@@ -615,7 +624,7 @@ void mainLoop()
             }
         }
         for (int i = 0; i < foods.size(); ++i) {
-            foods[i].r.x -= deltaTime * FOOD_SPEED;
+            foods[i].r.x -= deltaTime * foods[i].speed;
             if (foods[i].r.x + foods[i].r.w < 0) {
                 if (foods[i].foodType == FoodType::Good) {
                     hearthRects.pop_back();
