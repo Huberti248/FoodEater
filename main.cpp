@@ -510,6 +510,7 @@ SDL_Texture* backArrowT;
 SDL_Texture* foodT;
 SDL_Texture* goodFoodT;
 SDL_Texture* characterT;
+SDL_Texture* bgT;
 Entity player;
 Clock globalClock;
 std::vector<Food> foods;
@@ -523,6 +524,7 @@ SDL_FRect buyHeartR;
 SDL_FRect buyHeartBtnR;
 SDL_FRect backArrowR;
 int maxHeartsCount = 1;
+SDL_FRect bgR;
 
 Food generateFood(Entity player)
 {
@@ -659,8 +661,16 @@ void mainLoop()
                 foods.erase(foods.begin() + i--);
             }
         }
+        bgR.x -= deltaTime;
+        if (bgR.x + bgR.w < 0) {
+            bgR.x = 0;
+        }
+        SDL_FRect bgHelperR = bgR;
+        bgHelperR.x = bgR.x + bgR.w;
         SDL_SetRenderDrawColor(renderer, 255, 255, 255, 0);
         SDL_RenderClear(renderer);
+        SDL_RenderCopyF(renderer, bgT, 0, &bgR);
+        SDL_RenderCopyF(renderer, bgT, 0, &bgHelperR);
         SDL_RenderCopyF(renderer, shopT, 0, &shopR);
         for (int i = 0; i < foods.size(); ++i) {
             if (foods[i].foodType == FoodType::Good) {
@@ -754,6 +764,7 @@ int main(int argc, char* argv[])
     foodT = IMG_LoadTexture(renderer, "res/food.png");
     characterT = IMG_LoadTexture(renderer, "res/character.png");
     goodFoodT = IMG_LoadTexture(renderer, "res/goodFood.png");
+    bgT = IMG_LoadTexture(renderer, "res/bg.png");
     player.r.w = 32;
     player.r.h = 32;
     player.r.x = windowWidth / 2 - player.r.w / 2;
@@ -786,6 +797,10 @@ int main(int argc, char* argv[])
     buyHeartBtnR.h = 38;
     buyHeartBtnR.x = buyHeartR.x;
     buyHeartBtnR.y = buyHeartR.y + buyHeartR.h + 5;
+    bgR.w = windowWidth;
+    bgR.h = windowHeight;
+    bgR.x = 0;
+    bgR.y = 0;
     globalClock.restart();
     foodClock.restart();
 #ifdef __EMSCRIPTEN__
